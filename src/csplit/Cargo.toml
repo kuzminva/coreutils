@@ -1,0 +1,16 @@
+[package]
+name = "csplit"
+version = "0.0.1"
+authors = ["Vladimir Kuzmin <kuzminva@gmail.com>","Svetlana Avetisyan <svetlana.avetisyan.1992@mail.ru>", "Touseef Liaqat <touseefliaqat@gmail.com>"]
+
+[lib]
+name = "uu_csplit"
+path = "csplit.rs"
+
+[dependencies]
+getopts = "0.2.14"
+uucore = { path="../uucore" }
+
+[[bin]]
+name = "csplit"
+path = "main.rs"

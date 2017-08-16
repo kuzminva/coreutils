@@ -11,6 +11,7 @@ unix = [
   "chmod",
   "chown",
   "chroot",
+  "csplit",
   "du",
   "groups",
   "hostid",
@@ -98,6 +99,7 @@ redox = [
   "cksum",
   "comm",
   "cp",
+  "csplit",
   "cut",
   "date",
   "dircolors",
@@ -157,6 +159,7 @@ chroot   = { optional=true, path="src/chroot" }
 cksum    = { optional=true, path="src/cksum" }
 comm     = { optional=true, path="src/comm" }
 cp       = { optional=true, path="src/cp" }
+csplit    = { optional=true, path="src/csplit" }
 cut      = { optional=true, path="src/cut" }
 date     = { optional=true, path="src/date" }
 dircolors= { optional=true, path="src/dircolors" }
