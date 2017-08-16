@@ -28,14 +28,14 @@ static VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub fn uumain(args: Vec<String>) -> i32 {
     let mut opts = getopts::Options::new();
 
-    opts.optopt("a", "suffix-length", "use suffixes of length N (default 2)", "N");
-    opts.optopt("b", "bytes", "put SIZE bytes per output file", "SIZE");
-    opts.optopt("C", "line-bytes", "put at most SIZE bytes of lines per output file", "SIZE");
-    opts.optflag("d", "numeric-suffixes", "use numeric suffixes instead of alphabetic");
-    opts.optopt("l", "lines", "put NUMBER lines per output file", "NUMBER");
-    opts.optflag("", "verbose", "print a diagnostic just before each output file is opened");
-    opts.optflag("h", "help", "display help and exit");
-    opts.optflag("V", "version", "output version information and exit");
+   opts.optopt("b", "suffix-format", "use sprintf FORMAT instead of %02d", "FORMAT");
+   opts.optopt("f", "prefix=PREFIX", "use PREFIX instead of \'xx\'", "PREFIX");
+   opts.optflag("", "supress-matched", "supress the lines matching PATTERN");
+   opts.optopt("n", "digits", "use specified number of digits instead of 2", "DIGITS");
+   opts.optflag("s", "quite,silent", "do not print counts of output file sizes");
+   opts.optflag("z", "elide-empty-files", "remove empty output files");
+   opts.optflag("", "help", "display this help and exit");
+   opts.optflag("", "version", "output version information and exit");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
