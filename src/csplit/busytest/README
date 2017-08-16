@@ -1,0 +1,27 @@
+Implement tests from http://www.sanfoundry.com/5-practical-csplit-command-usage-examples-in-linux/
+It should use system csplit and target/build/csplit, execute tests, save output to directory and make a diff.
+If there is a difference in results, test failed.
+
+Steps for script:
+
+1.  Collect output and files for system csplit:
+mkdir system_test1
+cd system_test1
+csplit ../sample.txt PATTERN > test1.out 2>&1
+
+2. Collect output and files for built csplit
+mkdir rust_test1 
+cd rust_test1
+csplit ../sample.txt PATTERN > test1.out 2>&1
+
+// Now run diff
+diff system_test1 rust_test1
+
+// Tests are:
+csplit sample.txt 5
+csplit sample.txt /4/
+csplit sample.txt /Line/
+csplit sample.txt 1 {7}
+csplit sample.txt 2 {7}
+csplit -f xyz sample.txt 6
+csplit sample.txt /Line/ {*}
