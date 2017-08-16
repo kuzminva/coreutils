@@ -49,6 +49,7 @@ PROGS       := \
   comm \
   cp \
   cut \
+  csplit \
   dircolors \
   dirname \
   echo \
@@ -153,6 +154,7 @@ TEST_PROGS  := \
 	comm \
 	cp \
 	cut \
+	csplit \
 	dircolors \
 	dirname \
 	echo \
