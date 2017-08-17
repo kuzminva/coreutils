@@ -73,16 +73,19 @@ When FILE is -, read standard input.", NAME, VERSION);
     };
 
     settings.silent = matches.opt_present("quite") || matches.opt_present("silent");
+
+    // "lines" here means that strategy "split by line numbers" is selected.
     settings.strategy = "lines".to_owned();
 
-    // Read Input first. Use - (stdint) if not present.
+    // Read Input first. Use '-' that meansstdin flag is not present.
     let mut v = matches.free.iter();
     settings.input = match v.next() {
         Some(a) => a.to_owned(),
         None => "-".to_owned(),
     };
 
-    // Read all patterns int collection. Accept only line numbers for now.
+    // Read all patterns into collection. Accept only line numbers for now.
+    // Regex patter will be implemented later.
     loop {
        match v.next() {
           Some(val) => {
@@ -112,8 +115,8 @@ struct Settings {
 }
 
 struct CsplitControl {
-    current_line: String, // Don't touch
-    request_new_file: bool, // Csplitter implementation requests new file
+    current_line: String, 
+    request_new_file: bool, // Indicates if need to create a new file
 }
 
 trait Csplitter {
@@ -149,13 +152,13 @@ impl Csplitter for LineCsplitter {
         self.lines_to_write -= 1;
 
         // According to documentation, it shouldn't include last line,
-        // numbers determine exclusive range.
-        if self.lines_to_write == 1 {
+        // numbers determine ranges with exclusive end.
+        if self.lines_to_write <= 1 {
             control.request_new_file = true;
 
             self.index += 1;
             if self.index < self.numbers.len() {
-               self.lines_to_write = self.numbers[self.index];
+               self.lines_to_write = self.numbers[self.index] - self.numbers[self.index - 1];
             } else {
                self.lines_to_write = std::usize::MAX;
             }
