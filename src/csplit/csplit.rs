@@ -32,7 +32,8 @@ pub fn uumain(args: Vec<String>) -> i32 {
    opts.optopt("f", "prefix=PREFIX", "use PREFIX instead of \'xx\'", "PREFIX");
    opts.optflag("", "supress-matched", "supress the lines matching PATTERN");
    opts.optopt("n", "digits", "use specified number of digits instead of 2", "DIGITS");
-   opts.optflag("s", "quite,silent", "do not print counts of output file sizes");
+   opts.optflag("s", "silent", "do not print counts of output file sizes");
+   opts.optflag("", "quite", "do not print counts of output file sizes");
    opts.optflag("z", "elide-empty-files", "remove empty output files");
    opts.optflag("", "help", "display this help and exit");
    opts.optflag("", "version", "output version information and exit");
@@ -41,16 +42,16 @@ pub fn uumain(args: Vec<String>) -> i32 {
       Ok(m) => m,
       Err(f) => crash!(1, "{}", f)
    };
-   
+
    if matches.opt_present("help") {
       let msg = format!("{0} {1}
 
 Usage:
 {0} [OPTION]... FILE PATTERN...
 Output pieces of FILE separated by PATTERN(s) to files \'xx00\', \'xx01\', ...,
-and output byte counts of each piece to standard output. 
+and output byte counts of each piece to standard output.
 When FILE is -, read standard input.", NAME, VERSION);
-      println!("{}\n Each PATTERN maybe: INTEGER, REGEX", opts.usage(&msg)); 
+      println!("{}\n Each PATTERN maybe: INTEGER, REGEX", opts.usage(&msg));
       return 0;
    }
 
@@ -68,23 +69,32 @@ When FILE is -, read standard input.", NAME, VERSION);
         elide_empty_files: false,
         input: "".to_owned(),
         strategy: "".to_owned(),
-        numbers: vec![std::usize::MAX]
+        numbers: vec![]
     };
 
-    settings.silent = matches.opt_present("silent");
+    settings.silent = matches.opt_present("quite") || matches.opt_present("silent");
     settings.strategy = "lines".to_owned();
+
+    // Read Input first. Use - (stdint) if not present.
     let mut v = matches.free.iter();
     settings.input = match v.next() {
         Some(a) => a.to_owned(),
         None => "-".to_owned(),
     };
 
-    for val in matches.free {
-      match val.parse::<usize>() {
-         Ok(n) => settings.numbers.push(n),
-         Err(e) => crash!(1, "Does't support patterns yet: {}", e)
+    // Read all patterns int collection. Accept only line numbers for now.
+    loop {
+       match v.next() {
+          Some(val) => {
+             match val.parse::<usize>() {
+                Ok(n) => settings.numbers.push(n),
+                Err(e) => crash!(1, "Does't support patterns yet: {}", e)
+             }
+          },
+          None => { break }
        }
     }
+
 
     csplit(&settings)
 }
@@ -120,13 +130,13 @@ struct LineCsplitter {
 impl LineCsplitter {
     fn new(settings: &Settings) -> Box<Csplitter> {
 
-        let v = settings.numbers;
-        if settings.numbers.is_empty() {
-            v = vec![std::usize::MAX];
+        let mut v = settings.numbers.clone();
+        if v.is_empty() {
+            v.push(std::usize::MAX);
         }
 
         Box::new(LineCsplitter {
-            numbers: v,
+            numbers: v.clone(),
             index: 0,
             lines_to_write: v[0]
         }) as Box<Csplitter>
@@ -137,33 +147,21 @@ impl LineCsplitter {
 impl Csplitter for LineCsplitter {
     fn consume(&mut self, control: &mut CsplitControl) -> String {
         self.lines_to_write -= 1;
-        if self.lines_to_write == 0 {
+
+        // According to documentation, it shouldn't include last line,
+        // numbers determine exclusive range.
+        if self.lines_to_write == 1 {
+            control.request_new_file = true;
+
             self.index += 1;
             if self.index < self.numbers.len() {
                self.lines_to_write = self.numbers[self.index];
-               control.request_new_file = true;
             } else {
                self.lines_to_write = std::usize::MAX;
-            } 
+            }
         }
         control.current_line.clone()
     }
-}
-
-
-// (1, 3) -> "aab"
-fn str_prefix(i: usize, width: usize) -> String {
-    let mut c = "".to_owned();
-    let mut n = i;
-    let mut w = width;
-    while w > 0 {
-        w -= 1;
-        let div = 26usize.pow(w as u32);
-        let r = n / div;
-        n -= r * div;
-        c.push(char::from_u32((r as u32) + 97).unwrap());
-    }
-    c
 }
 
 // (1, 3) -> "001"
@@ -196,7 +194,7 @@ fn csplit(settings: &Settings) -> i32 {
 
     let mut csplitter: Box<Csplitter> =
         match settings.strategy.as_ref() {
-            "l" => LineCsplitter::new(settings),
+            "lines" => LineCsplitter::new(settings),
             a => crash!(1, "strategy {} not supported", a)
         };
 
@@ -207,32 +205,49 @@ fn csplit(settings: &Settings) -> i32 {
 
     let mut writer = BufWriter::new(Box::new(stdout()) as Box<Write>);
     let mut fileno = 0;
+    let mut written = 0;
     loop {
         if control.current_line.chars().count() == 0 {
             match reader.read_line(&mut control.current_line) {
-                Ok(0) | Err(_) => break,
+                Ok(0) | Err(_) => {
+                     // Reached end of input.
+                     // Print number of written and flushed bytes in the file.
+                     if !settings.silent {
+                        println!("{}", written);
+                     }
+                     break;
+                   },
                 _ => {}
             }
         }
 
         if control.request_new_file {
             let mut filename = settings.prefix.clone();
-            filename.push_str(
-                num_prefix(fileno, settings.digits).as_ref());
+            filename.push_str(num_prefix(fileno, settings.digits).as_ref());
 
             if fileno != 0 {
                 crash_if_err!(1, writer.flush());
+
+                // Print number of written and flushed bytes in the file.
+                if !settings.silent {
+                   println!("{}", written);
+                }
+                written = 0;
             }
+
             fileno += 1;
-            writer = BufWriter::new(Box::new(OpenOptions::new().write(true).create(true).open(Path::new(&filename)).unwrap()) as Box<Write>);
+            writer = BufWriter::new(Box::new(
+                           OpenOptions::new().write(true).
+                                              create(true).
+                                              truncate(true).open(Path::new(&filename)).unwrap()) as Box<Write>);
             control.request_new_file = false;
-            if settings.silent {
-                println!("creating file '{}'", filename);
-            }
         }
 
         let consumed = csplitter.consume(&mut control);
-        crash_if_err!(1, writer.write_all(consumed.as_bytes()));
+        let bytes = consumed.as_bytes();
+        written += bytes.len();
+
+        crash_if_err!(1, writer.write_all(bytes));
 
         let advance = consumed.chars().count();
         let clone = control.current_line.clone();
